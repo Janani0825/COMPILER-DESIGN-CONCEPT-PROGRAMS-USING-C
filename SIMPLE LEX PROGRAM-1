@@ -1,0 +1,20 @@
+%{
+#include<stdio.h>
+extern FILE *yyin;
+int lc=0,wc=0,cc=0,sc=0;
+%}
+%%
+[ \t] {sc++;cc++;}
+[\n ] { sc++;lc++;cc++;}
+[^ \t\n]+ {wc++;cc+=yyleng;}
+.  {cc++;}
+%%
+main(int argc,char **argv)
+{
+yyin = fopen(argv[1],"r");
+yylex();
+printf("No.of characters is %d\n",cc);
+printf("No.of words is %d\n",wc);
+printf("No.of line count is %d\n",lc);
+printf("No.of white space character is %d\n",sc);
+}
