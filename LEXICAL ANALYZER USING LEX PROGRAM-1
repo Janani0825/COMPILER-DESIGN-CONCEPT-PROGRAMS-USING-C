@@ -1,0 +1,113 @@
+%{
+#include <stdio.h>
+%}
+
+%s BM
+
+%%
+
+[a-zA-Z][a-zA-Z0-9]* {
+    BEGIN(BM);
+    fprintf(yyout, "<id, %s>\n", yytext);
+}
+
+[0-9]+ {
+    BEGIN(BM);
+    fprintf(yyout, "<const, %s>\n", yytext);
+}
+
+"*" {
+    BEGIN(0);
+    fprintf(yyout, "<*>\n");
+}
+
+"/" {
+    BEGIN(0);
+    fprintf(yyout, "</>\n");
+}
+
+"%" {
+    BEGIN(0);
+    fprintf(yyout, "<%%>\n");
+}
+
+")" {
+    BEGIN(BM);
+    fprintf(yyout, "<)>\n");
+}
+
+"(" {
+    BEGIN(0);
+    fprintf(yyout, "<(>\n");
+}
+
+"=" {
+    BEGIN(0);
+    fprintf(yyout, "<=>\n");
+}
+
+";" {
+    BEGIN(0);
+    fprintf(yyout, "<;>\n");
+}
+
+<BM>"++" {
+    BEGIN(0);
+    fprintf(yyout, "<post increment>\n");
+}
+
+"++" {
+    BEGIN(0);
+    fprintf(yyout, "<pre increment>\n");
+}
+
+<BM>"--" {
+    BEGIN(0);
+    fprintf(yyout, "<post decrement>\n");
+}
+
+"--" {
+    BEGIN(0);
+    fprintf(yyout, "<pre decrement>\n");
+}
+
+<BM>"-" {
+    BEGIN(0);
+    fprintf(yyout, "<Binary Minus>\n");
+}
+
+"-" {
+    BEGIN(0);
+    fprintf(yyout, "<Unary Minus>\n");
+}
+
+<BM>"+" {
+    BEGIN(0);
+    fprintf(yyout, "<Binary plus>\n");
+}
+
+"+" {
+    BEGIN(0);
+    fprintf(yyout, "<Unary plus>\n");
+}
+
+[ \t]+   { }
+\n       { BEGIN(0); }
+
+.        { fprintf(yyout, "<unknown token: %s>\n", yytext); }
+
+%%
+
+int yywrap() {
+    return 1;
+}
+
+int main()
+{
+    yyin = fopen("input.txt", "r");
+    yyout = fopen("output.txt", "w");
+    yylex();
+    fclose(yyin);
+    fclose(yyout);
+    return 0;
+}
