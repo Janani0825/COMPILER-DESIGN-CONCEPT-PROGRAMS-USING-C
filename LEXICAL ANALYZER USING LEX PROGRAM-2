@@ -1,0 +1,42 @@
+%{
+#include <stdio.h>
+#include <stdlib.h>
+%}
+
+%%
+"repeat"|"REPEAT"   { fprintf(yyout, "keyword: %s\n", yytext); }
+"until"|"UNTIL"     { fprintf(yyout, "keyword: %s\n", yytext); }
+":="                { fprintf(yyout, "assignment operator: %s\n", yytext); }
+"="                 { fprintf(yyout, "relational operator: %s\n", yytext); }
+"<>"                { fprintf(yyout, "relational operator: %s\n", yytext); }
+"<"                 { fprintf(yyout, "relational operator: %s\n", yytext); }
+"<="                { fprintf(yyout, "relational operator: %s\n", yytext); }
+">"                 { fprintf(yyout, "relational operator: %s\n", yytext); }
+">="                { fprintf(yyout, "relational operator: %s\n", yytext); }
+"+"                 { fprintf(yyout, "arithmetic operator: %s\n", yytext); }
+"-"                 { fprintf(yyout, "arithmetic operator: %s\n", yytext); }
+"*"                 { fprintf(yyout, "arithmetic operator: %s\n", yytext); }
+"/"                 { fprintf(yyout, "arithmetic operator: %s\n", yytext); }
+";"                 { fprintf(yyout, "delimiter: %s\n", yytext); }
+"("                 { fprintf(yyout, "left parenthesis: %s\n", yytext); }
+")"                 { fprintf(yyout, "right parenthesis: %s\n", yytext); }
+
+[a-zA-Z][a-zA-Z0-9]* { fprintf(yyout, "identifier: %s\n", yytext); }
+[0-9]+(\.[0-9]+)?    { fprintf(yyout, "number: %s\n", yytext); }
+
+[ \t\n]+            { }
+.                   { fprintf(yyout, "unknown character: %s\n", yytext); }
+%%
+
+int yywrap() {
+    return 1;
+}
+
+int main() {
+    yyin = fopen("inputpas.txt", "r");
+    yyout = fopen("outputpas.txt", "w");
+    yylex();
+    fclose(yyin);
+    fclose(yyout);
+    return 0;
+}
