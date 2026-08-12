@@ -1,0 +1,35 @@
+%{
+#include <stdio.h>
+int eligible = 1;
+char code[20];
+char name[30];
+char grade[5];
+int internal, external, credit;
+%}
+
+%%
+[A-Za-z0-9]+[ \t]+[A-Za-z]+[ \t]+[0-9]+[ \t]+[0-9]+[ \t]+[A-Za-z]+[ \t]+[0-9]+ {
+    sscanf(yytext, "%s %s %d %d %s %d", code, name, &internal, &external, grade, &credit);
+    if (internal < 70 || grade[0] == 'u' || grade[0] == 'U') {
+        eligible = 0;
+    }
+}
+
+\n
+.
+
+%%
+
+int yywrap() {
+    return 1;
+}
+
+int main() {
+    printf("Enter marksheet details:\n");
+    yylex();
+    if (eligible)
+        printf("\n eligible\n");
+    else
+        printf("\n not eligible\n");
+    return 0;
+}
