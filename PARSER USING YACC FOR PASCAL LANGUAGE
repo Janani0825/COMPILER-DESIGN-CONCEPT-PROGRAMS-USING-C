@@ -1,0 +1,230 @@
+-----------------------
+YACC CODE
+-----------------------
+%{
+#include <stdio.h>
+#include <stdlib.h>
+
+int yylex(void);
+void yyerror(const char *s);
+%}
+
+%token ID INT_CONST REAL_CONST
+
+%token REPEAT UNTIL
+%token WHILE DO
+%token IF THEN ELSE
+%token BEGIN_BLK END_BLK
+
+%token OR AND NOT
+%token DIV MOD
+
+%token TRUE_VAL FALSE_VAL
+
+%token ASSIGN
+
+%token EQ NE LT GT LE GE
+
+%left OR
+%left AND
+
+%left EQ NE LT GT LE GE
+
+%left '+' '-'
+
+%left '*' '/' DIV MOD
+
+%right '^'
+
+%right NOT UPLUS UMINUS
+
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
+
+
+%%
+
+
+
+SL
+    : S ';' SL
+    | S ';'
+    | S
+    ;
+
+
+
+S
+    : A
+    | R
+    | W
+    | I
+    | B
+    ;
+
+
+
+A
+    : ID ASSIGN E
+    ;
+
+
+
+R
+    : REPEAT RSL UNTIL C
+    ;
+
+
+RSL
+    : S ';' RSL
+    | S ';'
+    ;
+
+W
+    : WHILE C DO S
+    ;
+
+
+I
+    : IF C THEN S %prec LOWER_THAN_ELSE
+    | IF C THEN S ELSE S
+    ;
+
+
+B
+    : BEGIN_BLK SL END_BLK
+    ;
+
+
+C
+    : E relop E
+    ;
+
+
+
+relop
+    : EQ
+    | NE
+    | LT
+    | GT
+    | LE
+    | GE
+    ;
+
+
+E
+    : E '+' E
+    | E '-' E
+    | E OR E
+    | T
+    ;
+
+T
+    : T '*' T
+    | T '/' T
+    | T DIV T
+    | T MOD T
+    | T AND T
+    | P
+    ;
+
+
+P
+    : F '^' P
+    | F
+    ;
+
+F
+    : '+' F %prec UPLUS
+    | '-' F %prec UMINUS
+    | NOT F
+    | '(' E ')'
+    | ID
+    | INT_CONST
+    | REAL_CONST
+    | TRUE_VAL
+    | FALSE_VAL
+    ;
+
+
+%%
+
+
+void yyerror(const char *s)
+{
+    printf("\nSyntax Error: %s\n", s);
+}
+
+
+int main()
+{
+    printf("Enter the Pascal program:\n");
+
+    if (yyparse() == 0)
+        printf("\nValid Pascal Program\n");
+    else
+        printf("\nInvalid Pascal Program\n");
+
+    return 0;
+}
+------------------------
+LEX CODE
+-------------------------
+%{
+#include "y.tab.h"
+#include <stdlib.h>
+%}
+
+%%
+
+"repeat"        { return REPEAT; }
+"until"         { return UNTIL; }
+"while"         { return WHILE; }
+"do"            { return DO; }
+"if"            { return IF; }
+"then"          { return THEN; }
+"else"          { return ELSE; }
+"begin"         { return BEGIN_BLK; }
+"end"           { return END_BLK; }
+
+"or"            { return OR; }
+"and"           { return AND; }
+"not"           { return NOT; }
+"div"           { return DIV; }
+"mod"           { return MOD; }
+"true"          { return TRUE_VAL; }
+"false"         { return FALSE_VAL; }
+
+":="            { return ASSIGN; }
+
+"<>"            { return NE; }
+"<="            { return LE; }
+">="            { return GE; }
+"="             { return EQ; }
+"<"             { return LT; }
+">"             { return GT; }
+
+[0-9]+\.[0-9]+  { return REAL_CONST; }
+[0-9]+          { return INT_CONST; }
+
+[a-zA-Z_][a-zA-Z0-9_]*    { return ID; }
+
+[ \t\n\r]+      ;
+
+"+"             { return '+'; }
+"-"             { return '-'; }
+"*"             { return '*'; }
+"/"             { return '/'; }
+"^"             { return '^'; }
+"("             { return '('; }
+")"             { return ')'; }
+";"             { return ';'; }
+
+.               { return yytext[0]; }
+
+%%
+
+int yywrap()
+{
+    return 1;
+}
