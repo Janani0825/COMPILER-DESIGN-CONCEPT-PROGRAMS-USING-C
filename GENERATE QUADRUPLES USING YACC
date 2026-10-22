@@ -1,0 +1,306 @@
+----------------------------
+LEX CODE
+------------------------------
+%{
+#include "y.tab.h"
+#include <string.h>
+%}
+
+%%
+
+"if"                { return IF; }
+"else"              { return ELSE; }
+"while"             { return WHILE; }
+"do"                { return DO; }
+
+"=="|"!="|"<="|">="|"<"|">" {
+    strcpy(yylval.name, yytext);
+    return RELOP;
+}
+
+[0-9]+              { strcpy(yylval.name, yytext); return NUM; }
+[a-zA-Z_][a-zA-Z0-9_]* {
+    strcpy(yylval.name, yytext);
+    return ID;
+}
+
+"="                 { return ASSIGN; }
+"+"                 { return PLUS; }
+"-"                 { return MINUS; }
+"*"                 { return STAR; }
+"/"                 { return DIV; }
+
+"("                 { return LPAREN; }
+")"                 { return RPAREN; }
+"{"                 { return LBRACE; }
+"}"                 { return RBRACE; }
+";"                 { return SEMICOLON; }
+
+[ \t\n]+            ;
+.                   { return yytext[0]; }
+
+%%
+int yywrap(){
+    return 1;
+}
+--------------------------------
+YACC CODE
+---------------------------------
+%{
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int yylex(void);
+void yyerror(const char *s);
+
+FILE *fp;
+
+int tempCount = 1;
+int labelCount = 1;
+
+char condLeft[10], condOp[10], condRight[10];
+char pendingLabel[10] = "";
+
+void newTemp(char *s)
+{
+    sprintf(s, "t%d", tempCount++);
+}
+
+void newLabel(char *s)
+{
+    sprintf(s, "L%d", labelCount++);
+}
+
+void emit(const char *label, const char *a, const char *b,
+          const char *op, const char *res)
+{
+    char actualLabel[10];
+
+    if (label != NULL && label[0] != '\0')
+    {
+        snprintf(actualLabel, sizeof(actualLabel), "%s", label);
+    }
+    else if (pendingLabel[0] != '\0')
+    {
+        snprintf(actualLabel, sizeof(actualLabel), "%s", pendingLabel);
+        pendingLabel[0] = '\0';
+    }
+    else
+    {
+        actualLabel[0] = '\0';
+    }
+
+    fprintf(fp, "%-8s%-8s%-8s%-8s%-8s\n",
+            actualLabel, a, b, op, res);
+}
+%}
+
+%union {
+    char name[10];
+    struct lbl {
+        char true[10];
+        char false[10];
+        char next[10];
+    } label;
+    int num;
+}
+
+%token IF ELSE WHILE DO
+%token <name> ID NUM RELOP
+%token ASSIGN PLUS MINUS STAR DIV
+%token LPAREN RPAREN LBRACE RBRACE SEMICOLON
+
+%type <name> expr
+%type <label> if_head if_else_mid while_start while_head do_head
+
+%left PLUS MINUS
+%left STAR DIV
+
+%%
+
+program
+    : statements
+    ;
+
+statements
+    : statements statement
+    | statement
+    ;
+
+statement
+    : assignment
+    | if_stmt
+    | while_stmt
+    | do_stmt
+    | block
+    ;
+
+block
+    : LBRACE statements RBRACE
+    | LBRACE RBRACE
+    ;
+
+assignment
+    : ID ASSIGN expr SEMICOLON
+      {
+          emit("", $3, "-", "=", $1);
+      }
+    ;
+
+expr
+    : expr PLUS expr
+      {
+          newTemp($$);
+          emit("", $1, $3, "+", $$);
+      }
+    | expr MINUS expr
+      {
+          newTemp($$);
+          emit("", $1, $3, "-", $$);
+      }
+    | expr STAR expr
+      {
+          newTemp($$);
+          emit("", $1, $3, "*", $$);
+      }
+    | expr DIV expr
+      {
+          newTemp($$);
+          emit("", $1, $3, "/", $$);
+      }
+    | ID
+      {
+          strcpy($$, $1);
+      }
+    | NUM
+      {
+          strcpy($$, $1);
+      }
+    | LPAREN expr RPAREN
+      {
+          strcpy($$, $2);
+      }
+    ;
+
+condition
+    : expr RELOP expr
+      {
+          strcpy(condLeft, $1);
+          strcpy(condOp, $2);
+          strcpy(condRight, $3);
+      }
+    ;
+
+if_head
+    : IF LPAREN condition RPAREN
+      {
+          newLabel($$.true);
+          newLabel($$.false);
+
+          emit("", condLeft, condRight, condOp, $$.true);
+          emit("", "-", "-", "goto", $$.false);
+
+          strcpy(pendingLabel, $$.true);
+      }
+    ;
+
+if_else_mid
+    : /* empty */
+      {
+          newLabel($$.next);
+      }
+    ;
+
+if_stmt
+    : if_head block
+      {
+          emit($1.false, "-", "-", "-", "-");
+      }
+    | if_head block ELSE if_else_mid
+      {
+          emit("", "-", "-", "goto", $4.next);
+          strcpy(pendingLabel, $1.false);
+      }
+      block
+      {
+          emit($4.next, "-", "-", "-", "-");
+      }
+    ;
+while_start
+    : WHILE
+      {
+          newLabel($$.next);
+          strcpy(pendingLabel, $$.next);
+      }
+    ;
+
+while_head
+    : while_start LPAREN condition RPAREN
+      {
+          strcpy($$.next, $1.next);
+
+          newLabel($$.true);
+          newLabel($$.false);
+
+          emit("", condLeft, condRight, condOp, $$.true);
+          emit("", "-", "-", "goto", $$.false);
+
+          strcpy(pendingLabel, $$.true);
+      }
+    ;
+
+while_stmt
+    : while_head block
+      {
+          emit("", "-", "-", "goto", $1.next);
+          strcpy(pendingLabel, $1.false);
+      }
+    ;
+
+do_head
+    : DO
+      {
+          newLabel($$.true);
+          newLabel($$.false);
+
+          strcpy(pendingLabel, $$.true);
+      }
+    ;
+
+do_stmt
+    : do_head block WHILE LPAREN condition RPAREN SEMICOLON
+      {
+          emit("", condLeft, condRight, condOp, $1.true);
+          strcpy(pendingLabel, $1.false);
+      }
+    ;
+
+%%
+
+void yyerror(const char *s)
+{
+    fprintf(stderr, "Syntax error: %s\n", s);
+}
+
+int main(void)
+{
+    fp = fopen("output.txt", "w");
+
+    if (fp == NULL)
+    {
+        perror("output.txt");
+        return 1;
+    }
+
+    fprintf(fp, "Label   op1     op2     op      res\n");
+    fprintf(fp, "---------------------------------------------\n");
+
+    yyparse();
+
+    fclose(fp);
+
+    printf("TAC generated in output.txt\n");
+    return 0;
+}
+
