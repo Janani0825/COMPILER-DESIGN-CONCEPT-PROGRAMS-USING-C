@@ -1,0 +1,185 @@
+--------------------
+LEX CODE
+--------------------
+%{
+#include "y.tab.h"
+#include <stdlib.h>
+%}
+%x BM
+%%
+[0-9]+\.[0-9]+    { BEGIN(BM); yylval.fval = atof(yytext); return FC; }
+[0-9]+            { BEGIN(BM); yylval.ival = atoi(yytext); return IC; }
+<BM>"+"           { BEGIN(0); return PLUS; }
+<BM>"-"           { BEGIN(0); return MINUS; }
+<BM>"*"           { BEGIN(0); return STAR; }
+<BM>"/"           { BEGIN(0); return SLASH; }
+<BM>"%"           { BEGIN(0); return MOD; }
+<BM>"^"           { BEGIN(0); return POWER; }
+"-"               { BEGIN(0); return UMINUS; }
+<BM>"!"           { BEGIN(BM); return FACT; }
+"("               { BEGIN(0); return OP; }
+<BM>")"           { BEGIN(BM); return CP; }
+"_"               { BEGIN(0); return FLO; }
+<BM>"_"           { BEGIN(BM); return FLC; }
+<BM>\n             { BEGIN(0); return NL; }
+[ \t]+             { ; }
+.                  { ; }
+%%
+int yywrap()
+{
+    return 1;
+}
+---------------------
+YACC CODE
+---------------------
+%{
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+int yylex(void);
+void yyerror(const char *s);
+
+int factorial(int n)
+{
+    int f = 1;
+    int i;
+
+    if (n < 0)
+        return 0;
+
+    for (i = 1; i <= n; i++)
+        f = f * i;
+
+    return f;
+}
+%}
+
+%union
+{
+    int ival;
+    float fval;
+}
+
+%token OP CP
+%token FLO FLC
+%token NL
+
+%token PLUS MINUS STAR SLASH MOD POWER FACT UMINUS
+
+%token <ival> IC
+%token <fval> FC
+
+%type <fval> E
+
+/* Precedence */
+
+%left PLUS MINUS
+%left STAR SLASH MOD
+%right UMINUS
+%right POWER
+%left FACT
+
+%%
+
+S
+    : E NL
+      {
+          printf("Result of exp = %f\n", $1);
+      }
+    ;
+
+E
+    : E PLUS E
+      {
+          $$ = $1 + $3;
+      }
+
+    | E MINUS E
+      {
+          $$ = $1 - $3;
+      }
+
+    | E STAR E
+      {
+          $$ = $1 * $3;
+      }
+
+    | E SLASH E
+      {
+          if ($3 == 0)
+          {
+              yyerror("Divide by zero");
+              $$ = 0;
+          }
+          else
+          {
+              $$ = $1 / $3;
+          }
+      }
+
+    | E MOD E
+      {
+          if ($3 == 0)
+          {
+              yyerror("Modulo by zero");
+              $$ = 0;
+          }
+          else
+          {
+              $$ = fmod($1, $3);
+          }
+      }
+
+    | E POWER E
+      {
+          $$ = pow($1, $3);
+      }
+
+    | UMINUS E
+      {
+          $$ = -$2;
+      }
+
+    | E FACT
+      {
+          $$ = factorial((int)$1);
+      }
+
+    | OP E CP
+      {
+          $$ = $2;
+      }
+
+    | FLO E FLC
+      {
+          $$ = floor($2);
+      }
+
+    | IC
+      {
+          $$ = $1;
+      }
+
+    | FC
+      {
+          $$ = $1;
+      }
+    ;
+
+%%
+
+void yyerror(const char *s)
+{
+    printf("%s\n", s);
+}
+
+int main()
+{
+    printf("Enter expression:\n");
+    yyparse();
+
+    return 0;
+}
+
+
