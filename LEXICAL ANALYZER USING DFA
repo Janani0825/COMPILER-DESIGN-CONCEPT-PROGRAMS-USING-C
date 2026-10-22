@@ -1,0 +1,268 @@
+#ifndef DFA_H
+#define DFA_H
+
+#include <stdio.h>
+
+typedef struct dfa
+{
+    char sts[30];
+    char syms[10];
+    char tt[30][10];
+    char ist;
+    char fsts[10];
+} dfa;
+
+dfa readDFA(void);
+void printDFA(dfa);
+void lexerwithDFA(char *, dfa);
+
+#endif
+-------------------------------------
+dfaimp.c
+-------------------------------------
+#include "dfa.h"
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+dfa readDFA(void)
+{
+    dfa d;
+    int ns, nsy;
+    int i, j;
+    char ch;
+
+    printf("Enter number of states: ");
+    scanf("%d", &ns);
+
+    printf("Enter states: ");
+    for (i = 0; i < ns; i++)
+        scanf(" %c", &d.sts[i]);
+
+    d.sts[ns] = '\0';
+
+    printf("Enter number of symbols: ");
+    scanf("%d", &nsy);
+
+    printf("Enter symbols: ");
+    for (i = 0; i < nsy; i++)
+        scanf(" %c", &d.syms[i]);
+
+    d.syms[nsy] = '\0';
+
+    printf("Enter initial state: ");
+    scanf(" %c", &d.ist);
+
+    while ((ch = getchar()) != '\n' && ch != EOF);
+
+    printf("Enter accepting states: ");
+    int f_count = 0;
+    while (scanf("%c", &ch) == 1 && ch != '\n')
+    {
+        if (!isspace(ch))
+        {
+            d.fsts[f_count++] = ch;
+        }
+    }
+    d.fsts[f_count] = '\0';
+
+    printf("\nEnter transition table:\n");
+
+    for (i = 0; i < ns; i++)
+    {
+        for (j = 0; j < nsy; j++)
+        {
+            printf("Transition[%c][%c] = ", d.sts[i], d.syms[j]);
+            scanf(" %c", &d.tt[i][j]);
+        }
+    }
+
+    return d;
+}
+
+void printDFA(dfa d)
+{
+    int i, j;
+    int ns = strlen(d.sts);
+    int nsy = strlen(d.syms);
+
+    printf("\n\n========== DFA ==========\n");
+
+    printf("States: ");
+    for (i = 0; i < ns; i++)
+        printf("%c ", d.sts[i]);
+
+    printf("\nSymbols: ");
+    for (i = 0; i < nsy; i++)
+        printf("%c ", d.syms[i]);
+
+    printf("\nInitial State: %c", d.ist);
+
+    printf("\nAccepting States: ");
+    for (i = 0; d.fsts[i] != '\0'; i++)
+        printf("%c ", d.fsts[i]);
+
+    printf("\n\nTransition Table:\n");
+
+    printf("\t");
+    for (i = 0; i < nsy; i++)
+        printf("%c\t", d.syms[i]);
+
+    printf("\n");
+
+    for (i = 0; i < ns; i++)
+    {
+        printf("%c\t", d.sts[i]);
+        for (j = 0; j < nsy; j++)
+            printf("%c\t", d.tt[i][j]);
+        printf("\n");
+    }
+
+    printf("=========================\n");
+}
+
+void lexerwithDFA(char *sentence, dfa d)
+{
+    int i = 0;
+    int j, k;
+    char token[100];
+
+    printf("\n\n========== TOKENS AND FINAL STATES ==========\n");
+
+    while (sentence[i] != '\0')
+    {
+        while (sentence[i] != '\0' && isspace(sentence[i]))
+        {
+            i++;
+        }
+
+        if (sentence[i] == '\0')
+            break;
+
+        int start = i;
+        int current_state_idx = -1;
+
+        for (j = 0; d.sts[j] != '\0'; j++)
+        {
+            if (d.sts[j] == d.ist)
+            {
+                current_state_idx = j;
+                break;
+            }
+        }
+
+        int last_accepting_idx = -1;
+        int last_accepting_pos = -1;
+
+        int temp_i = i;
+        int state_idx = current_state_idx;
+        int last_valid_state_idx = current_state_idx;
+
+        while (sentence[temp_i] != '\0' && !isspace(sentence[temp_i]))
+        {
+            char current_char = sentence[temp_i];
+            int symbol_idx = -1;
+
+            for (j = 0; d.syms[j] != '\0'; j++)
+            {
+                if (d.syms[j] == current_char)
+                {
+                    symbol_idx = j;
+                    break;
+                }
+            }
+
+            if (symbol_idx == -1)
+            {
+                break;
+            }
+
+            char next_state_char = d.tt[state_idx][symbol_idx];
+            int next_state_idx = -1;
+
+            for (k = 0; d.sts[k] != '\0'; k++)
+            {
+                if (d.sts[k] == next_state_char)
+                {
+                    next_state_idx = k;
+                    break;
+                }
+            }
+
+            if (next_state_idx == -1)
+            {
+                break;
+            }
+
+            state_idx = next_state_idx;
+            last_valid_state_idx = state_idx;
+            temp_i++;
+
+            for (j = 0; d.fsts[j] != '\0'; j++)
+            {
+                if (d.fsts[j] == d.sts[state_idx])
+                {
+                    last_accepting_idx = state_idx;
+                    last_accepting_pos = temp_i;
+                    break;
+                }
+            }
+        }
+
+        if (last_accepting_pos != -1)
+        {
+            int len = last_accepting_pos - start;
+            strncpy(token, sentence + start, len);
+            token[len] = '\0';
+
+            printf("Valid Token   : %-15s | Accepted in State: %c\n", token, d.sts[last_accepting_idx]);
+            i = last_accepting_pos;
+        }
+        else
+        {
+            if (temp_i == start)
+            {
+                temp_i++;
+            }
+
+            int len = temp_i - start;
+            strncpy(token, sentence + start, len);
+            token[len] = '\0';
+
+            printf("Invalid Token : %-15s | Non accepted at State: %c\n", token, d.sts[last_valid_state_idx]);
+            i = temp_i;
+        }
+    }
+
+    printf("=============================================\n");
+}
+-------------------------------
+dfaapp.c
+-------------------------------
+#include "dfa.h"
+#include <string.h>
+
+int main()
+{
+    dfa d;
+    char sentence[500];
+
+    printf("=====================================\n");
+    printf("   LEXICAL ANALYSIS USING DFA\n");
+    printf("=====================================\n");
+
+    d = readDFA();
+
+    printDFA(d);
+
+    getchar();
+
+    printf("\nEnter the sentence: ");
+    fgets(sentence, sizeof(sentence), stdin);
+
+    sentence[strcspn(sentence, "\n")] = '\0';
+
+    lexerwithDFA(sentence, d);
+
+    return 0;
+}
