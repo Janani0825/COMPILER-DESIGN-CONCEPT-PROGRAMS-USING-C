@@ -1,0 +1,163 @@
+-----------------------------
+YACC CODE
+-------------------------------
+%{
+#include <stdio.h>
+#include <stdlib.h>
+int yylex(void);
+void yyerror(const char *s);
+%}
+
+%token ID CON
+%token INT CHAR FLOAT DOUBLE
+%token SHORT LONG UNSIGNED SIGNED
+%token IF ELSE WHILE
+%token EQ
+%token ADD_EQ SUB_EQ MUL_EQ DIV_EQ MOD_EQ
+%token RSHIFT_EQ LSHIFT_EQ AND_EQ OR_EQ XOR_EQ
+%token LT GT LE GE EE NE
+%token INC DEC
+
+%right EQ ADD_EQ SUB_EQ MUL_EQ DIV_EQ MOD_EQ
+%right RSHIFT_EQ LSHIFT_EQ AND_EQ OR_EQ XOR_EQ
+%nonassoc LT GT LE GE EE NE
+%left '+' '-'
+%left '*' '/' '%'
+%right UPLUS UMINUS '!'
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
+
+%%
+START : SL { printf("\nInput Parsed Successfully\n"); } ;
+
+SL : SL S
+   | S
+   ;
+
+S : A ';'
+  | D ';'
+  | E ';'
+  | I
+  | W
+  ;
+
+A : ID EQ E
+  | ID ADD_EQ E
+  | ID SUB_EQ E
+  | ID MUL_EQ E
+  | ID DIV_EQ E
+  | ID MOD_EQ E
+  | ID RSHIFT_EQ E
+  | ID LSHIFT_EQ E
+  | ID AND_EQ E
+  | ID OR_EQ E
+  | ID XOR_EQ E
+  ;
+
+D : QL dtype vlist ;
+
+QL : SHORT | LONG | UNSIGNED | SIGNED | ;
+
+dtype : INT | CHAR | FLOAT | DOUBLE ;
+
+vlist : ID
+      | ID ',' vlist
+      ;
+
+I : IF '(' C ')' S %prec LOWER_THAN_ELSE
+  | IF '(' C ')' S ELSE S
+  ;
+
+W : WHILE '(' C ')' S ;
+
+C : E LT E | E GT E | E LE E | E GE E | E EE E | E NE E ;
+
+E : E '+' E
+  | E '-' E
+  | E '*' E
+  | E '/' E
+  | E '%' E
+  | '+' E %prec UPLUS
+  | '-' E %prec UMINUS
+  | '!' E
+  | INC ID
+  | DEC ID
+  | ID INC
+  | ID DEC
+  | '(' E ')'
+  | ID
+  | CON
+  ;
+%%
+
+void yyerror(const char *s) {
+    printf("\nSyntax Error: %s\n", s);
+}
+
+int main() {
+    printf("Enter the C program:\n");
+    if (yyparse() == 0)
+        printf("\nValid C Program\n");
+    else
+        printf("\nInvalid C Program\n");
+    return 0;
+}
+-------------------------------
+LEX CODE
+---------------------------------
+%{
+#include "y.tab.h"
+%}
+
+%%
+"int"       { return INT; }
+"char"      { return CHAR; }
+"float"     { return FLOAT; }
+"double"    { return DOUBLE; }
+"short"     { return SHORT; }
+"long"      { return LONG; }
+"unsigned"  { return UNSIGNED; }
+"signed"    { return SIGNED; }
+"if"        { return IF; }
+"else"      { return ELSE; }
+"while"     { return WHILE; }
+">>="       { return RSHIFT_EQ; }
+"<<="       { return LSHIFT_EQ; }
+"+="        { return ADD_EQ; }
+"-="        { return SUB_EQ; }
+"*="        { return MUL_EQ; }
+"/="        { return DIV_EQ; }
+"%="        { return MOD_EQ; }
+"&="        { return AND_EQ; }
+"|="        { return OR_EQ; }
+"^="        { return XOR_EQ; }
+"="         { return EQ; }
+"=="        { return EE; }
+"!="        { return NE; }
+"<="        { return LE; }
+">="        { return GE; }
+"<"         { return LT; }
+">"         { return GT; }
+"++"        { return INC; }
+"--"        { return DEC; }
+[0-9]+      { return CON; }
+[a-zA-Z_][a-zA-Z0-9_]* { return ID; }
+[ \t\n]+    ; /* Ignore whitespace, tabs, and newlines */
+"+"         { return '+'; }
+"-"         { return '-'; }
+"*"         { return '*'; }
+"/"         { return '/'; }
+"%"         { return '%'; }
+"!"         { return '!'; }
+"("         { return '('; }
+")"         { return ')'; }
+","         { return ','; }
+";"         { return ';'; }
+.           { return yytext[0]; }
+%%
+
+int yywrap() {
+    return 1;
+}
+
+
